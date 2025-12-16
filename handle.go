@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cnk3x/fsw/configx"
 	"github.com/cnk3x/pkg/cmdo"
 	"github.com/cnk3x/pkg/fsw"
 	"github.com/cnk3x/pkg/rex"
@@ -37,6 +36,8 @@ func Handle(task *Typed) fsw.HandlerFunc {
 				slog.Info("  --", "event", ev.Op.String(), "path", ev.Name)
 			}
 		}
+	default:
+		slog.Error("task::init", "name", task.Tag, "err", fmt.Errorf("unknown task type: %s", task.Type))
 	}
 	return nil
 }
@@ -79,15 +80,17 @@ func handlerFromTyped[T any](task *Typed, process func(ctx context.Context, cfg 
 }
 
 type oneshotConfig struct {
-	Command []string          `json:"command"`
-	Env     map[string]string `json:"env"`
-	Dir     string            `json:"dir"`
-	Timeout configx.Duration  `json:"timeout"`
+	Command strs     `json:"command"`
+	Env     strmap   `json:"env"`
+	Dir     string   `json:"dir"`
+	Timeout duration `json:"timeout"`
 }
 
 func handleOneshotOrService(task *Typed) fsw.HandlerFunc {
 	return handlerFromTyped(task, func(ctx context.Context, cfg oneshotConfig, _ []fsnotify.Event) (err error) {
-		if task.Type == "oneshot" { // oneshot任务, 超时默认10秒, service 任务, 不设置 timeout 不超时
+		// oneshot任务, 为0/默认为10秒,
+		// service 任务, 为0不超时
+		if task.Type == "oneshot" || cfg.Timeout.Value() > 0 {
 			var cancel context.CancelFunc
 			ctx, cancel = context.WithTimeout(ctx, cmp.Or(cfg.Timeout.Value(), time.Second*10))
 			defer cancel()
@@ -101,11 +104,11 @@ func handleOneshotOrService(task *Typed) fsw.HandlerFunc {
 }
 
 type shellConfig struct {
-	Shell   string            `json:"shell"`
-	Command []string          `json:"command"`
-	Env     map[string]string `json:"env"`
-	Dir     string            `json:"dir"`
-	Timeout configx.Duration  `json:"timeout"`
+	Shell   strs     `json:"shell"`
+	Command strs     `json:"command"`
+	Env     strmap   `json:"env"`
+	Dir     string   `json:"dir"`
+	Timeout duration `json:"timeout"`
 }
 
 func handleShell(task *Typed) fsw.HandlerFunc {
@@ -114,10 +117,13 @@ func handleShell(task *Typed) fsw.HandlerFunc {
 		ctx, cancel = context.WithTimeout(ctx, cmp.Or(cfg.Timeout.Value(), time.Second*10))
 		defer cancel()
 
-		shell := GetShell()
-		if len(shell) == 0 {
-			return fmt.Errorf("shell::init: %w", err)
+		shell := cfg.Shell
+		if len(shell) == 0 || shell[0] == "" {
+			if shell = GetShell(); len(shell) == 0 {
+				return fmt.Errorf("shell::init: %w", err)
+			}
 		}
+
 		c := exec.CommandContext(ctx, shell[0], shell[1:]...)
 		c.SysProcAttr = &syscall.SysProcAttr{}
 		c.Env = os.Environ()
