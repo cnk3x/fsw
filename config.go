@@ -11,7 +11,7 @@ func ConfigDefault() Config {
 		Tasks:    map[string]*Typed{"echo": {Type: "echo"}},
 		Root:     []string{"."},
 		Event:    "cwmd",
-		Triggers: []Trigger{{Task: "echo", Match: []string{`.+\.go`}, Event: "cwmd"}},
+		Triggers: []Trigger{{Task: "echo", Match: []string{`.+`}, Event: "cwmd"}},
 	}
 	config.Base, _ = os.Getwd()
 	return config

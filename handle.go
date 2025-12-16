@@ -24,11 +24,11 @@ func Handle(task *Typed) fsw.HandlerFunc {
 		return nil
 	}
 	switch task.Type {
-	case "oneshot", "cmd":
+	case "oneshot":
 		return handleOneshot(task)
 	case "shell":
 		return handleShell(task)
-	case "svg_sprite", "svg":
+	case "svg_sprite":
 		return handleSvgSprite(task)
 	case "echo":
 		return func(ctx context.Context, e []fsnotify.Event) {
@@ -61,13 +61,72 @@ type oneshotConfig struct {
 	Command []string          `json:"command"`
 	Env     map[string]string `json:"env"`
 	Dir     string            `json:"dir"`
+	Timeout configx.Duration  `json:"timeout"`
 }
 
 func handleOneshot(task *Typed) fsw.HandlerFunc {
 	return handlerFromTyped(task, func(ctx context.Context, cfg oneshotConfig, _ []fsnotify.Event) (err error) {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, cmp.Or(cfg.Timeout.Value(), time.Second*10))
+		defer cancel()
+
 		c := exec.CommandContext(ctx, cfg.Command[0], cfg.Command[1:]...)
+		c.SysProcAttr = &syscall.SysProcAttr{}
 		c.Env = os.Environ()
 		return cmdo.Apply(c, cmdo.PKill, cmdo.Env(cfg.Env), cmdo.Dir(cfg.Dir), cmdo.Std).Run()
+	})
+}
+
+type shellConfig struct {
+	Shell   string            `json:"shell"`
+	Command []string          `json:"command"`
+	Env     map[string]string `json:"env"`
+	Dir     string            `json:"dir"`
+	Timeout configx.Duration  `json:"timeout"`
+}
+
+func handleShell(task *Typed) fsw.HandlerFunc {
+	return handlerFromTyped(task, func(ctx context.Context, cfg shellConfig, _ []fsnotify.Event) (err error) {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, cmp.Or(cfg.Timeout.Value(), time.Second*10))
+		defer cancel()
+
+		shell := GetShell()
+		if len(shell) == 0 {
+			return fmt.Errorf("shell::init: %w", err)
+		}
+		c := exec.CommandContext(ctx, shell[0], shell[1:]...)
+		c.SysProcAttr = &syscall.SysProcAttr{}
+		c.Env = os.Environ()
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+		c = cmdo.Apply(c, cmdo.PKill, cmdo.Env(cfg.Env), cmdo.Dir(cfg.Dir))
+
+		c.Stdin = nil
+		stdin, err := c.StdinPipe()
+		if err != nil {
+			return fmt.Errorf("shell::stdin pipe: %w", err)
+		}
+
+		if err = c.Start(); err != nil {
+			return fmt.Errorf("shell::start: %w", err)
+		}
+
+		for _, cmd := range cfg.Command {
+			if _, err = stdin.Write([]byte(cmd + "\n")); err != nil {
+				slog.Error("shell::write cmd", "cmd", cmd, "err", err)
+			}
+		}
+
+		if err = stdin.Close(); err != nil {
+			slog.Error("shell::stdin close", "err", err)
+		}
+
+		if err = c.Wait(); err != nil {
+			return fmt.Errorf("shell::wait: %w", err)
+		}
+
+		return nil
 	})
 }
 
@@ -103,57 +162,5 @@ func handleSvgSprite(task *Typed) fsw.HandlerFunc {
 
 		slog.Info("svg_sprite", "files", len(files))
 		return svg.Sprite(cfg.Dst, files, svg.NameFromBase(cfg.Src), svg.Pretty(cfg.Pretty))
-	})
-}
-
-type shellConfig struct {
-	Shell   string            `json:"shell"`
-	Command []string          `json:"command"`
-	Env     map[string]string `json:"env"`
-	Dir     string            `json:"dir"`
-	Timeout configx.Duration  `json:"timeout"`
-}
-
-func handleShell(task *Typed) fsw.HandlerFunc {
-	return handlerFromTyped(task, func(ctx context.Context, cfg shellConfig, _ []fsnotify.Event) (err error) {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cmp.Or(cfg.Timeout.Value(), time.Second*10))
-		defer cancel()
-
-		shell := GetShell()
-		if len(shell) == 0 {
-			return fmt.Errorf("shell::init: %w", err)
-		}
-		c := exec.CommandContext(ctx, shell[0], shell[1:]...)
-		c.SysProcAttr = &syscall.SysProcAttr{}
-		c.Env = os.Environ()
-		c = cmdo.Apply(c, cmdo.PKill, cmdo.Env(cfg.Env), cmdo.Dir(cfg.Dir))
-		c.Stdout = os.Stdout
-		c.Stderr = os.Stderr
-
-		stdin, err := c.StdinPipe()
-		if err != nil {
-			return fmt.Errorf("shell::stdin pipe: %w", err)
-		}
-
-		if err = c.Start(); err != nil {
-			return fmt.Errorf("shell::start: %w", err)
-		}
-
-		for _, cmd := range cfg.Command {
-			if _, err = stdin.Write([]byte(cmd + "\n")); err != nil {
-				slog.Error("shell::write cmd", "cmd", cmd, "err", err)
-			}
-		}
-
-		if err = stdin.Close(); err != nil {
-			slog.Error("shell::stdin close", "err", err)
-		}
-
-		if err = c.Wait(); err != nil {
-			return fmt.Errorf("shell::wait: %w", err)
-		}
-
-		return nil
 	})
 }
