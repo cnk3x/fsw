@@ -1,0 +1,12 @@
+root: ["."]
+exclude: ["\\.git"]
+
+tasks:
+  echo: { type: echo }
+  build:
+    type: shell
+    command: ["go build -v -trimpath -ldflags '-s -w' -o d:/bin/fsw.exe"]
+
+triggers:
+  - { task: echo }
+  - { task: build, match: ["\\.go$", "!_test\\.go$"] }
