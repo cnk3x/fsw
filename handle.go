@@ -37,7 +37,7 @@ func Handle(task *Typed) fsw.HandlerFunc {
 			}
 		}
 	default:
-		slog.Error("task::init", "name", task.Tag, "err", fmt.Errorf("unknown task type: %s", task.Type))
+		slog.Error("task init", "name", task.Tag, "err", fmt.Errorf("unknown task type: %s", task.Type))
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func Handle(task *Typed) fsw.HandlerFunc {
 func handlerFromTyped[T any](task *Typed, process func(ctx context.Context, cfg T, evt []fsnotify.Event) error) fsw.HandlerFunc {
 	var cfg T
 	if err := task.UnmarshalProps(&cfg); err != nil {
-		slog.Error("task::init", "name", task.Tag, "err", err)
+		slog.Error("task init", "name", task.Tag, "err", err)
 		return nil
 	}
 
@@ -60,7 +60,7 @@ func handlerFromTyped[T any](task *Typed, process func(ctx context.Context, cfg 
 
 		select {
 		case <-ctx.Done():
-			slog.Info("task::done", "name", task.Tag, "err", context.Cause(ctx))
+			slog.Info("task done", "name", task.Tag, "err", context.Cause(ctx))
 			return
 		case <-done:
 		}
@@ -72,9 +72,9 @@ func handlerFromTyped[T any](task *Typed, process func(ctx context.Context, cfg 
 		defer cancel()
 
 		if err := contextRun(ctx, func(ctx context.Context) error { return process(ctx, cfg, e) }); err != nil {
-			slog.Error("task::proc", "name", task.Tag, "err", err)
+			slog.Error("task proc", "name", task.Tag, "err", err)
 		} else {
-			slog.Info("task::done", "name", task.Tag)
+			slog.Info("task done", "name", task.Tag)
 		}
 	}
 }
@@ -120,13 +120,11 @@ func handleShell(task *Typed) fsw.HandlerFunc {
 		shell := cfg.Shell
 		if len(shell) == 0 || shell[0] == "" {
 			if shell = GetShell(); len(shell) == 0 {
-				return fmt.Errorf("shell::init: %w", err)
+				return fmt.Errorf("shell init: %w", err)
 			}
 		}
 
 		c := exec.CommandContext(ctx, shell[0], shell[1:]...)
-		c.SysProcAttr = &syscall.SysProcAttr{}
-		c.Env = os.Environ()
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
 		c = cmdo.Apply(c, cmdo.PKill, cmdo.Env(cfg.Env), cmdo.Dir(cfg.Dir))
@@ -134,25 +132,25 @@ func handleShell(task *Typed) fsw.HandlerFunc {
 		c.Stdin = nil
 		stdin, err := c.StdinPipe()
 		if err != nil {
-			return fmt.Errorf("shell::stdin pipe: %w", err)
+			return fmt.Errorf("shell stdin pipe: %w", err)
 		}
 
 		if err = c.Start(); err != nil {
-			return fmt.Errorf("shell::start: %w", err)
+			return fmt.Errorf("shell start: %w", err)
 		}
 
 		for _, cmd := range cfg.Command {
 			if _, err = stdin.Write([]byte(cmd + "\n")); err != nil {
-				slog.Error("shell::write cmd", "cmd", cmd, "err", err)
+				slog.Error("shell write cmd", "cmd", cmd, "err", err)
 			}
 		}
 
 		if err = stdin.Close(); err != nil {
-			slog.Error("shell::stdin close", "err", err)
+			slog.Error("shell stdin close", "err", err)
 		}
 
 		if err = c.Wait(); err != nil {
-			return fmt.Errorf("shell::wait: %w", err)
+			return fmt.Errorf("shell wait: %w", err)
 		}
 
 		return nil

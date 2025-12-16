@@ -7,10 +7,12 @@ import (
 
 type Typed struct {
 	Tag   string
-	Type  string
+	Type  string `json:"type"`
 	props any
 	raw   []byte
 }
+
+type _typed Typed
 
 func (t *Typed) UnmarshalProps(props any) (err error) {
 	if err = json.Unmarshal(t.raw, &props); err != nil {
@@ -24,16 +26,22 @@ func (t *Typed) UnmarshalProps(props any) (err error) {
 // UnmarshalJSON implements json.Unmarshaler.
 func (t *Typed) UnmarshalJSON(data []byte) error {
 	t.raw = data
-	var typed struct {
-		Tag  string `json:"tag"`
-		Type string `json:"type"`
+
+	slog.Warn(string(data))
+
+	if len(data) == 0 {
+		return nil
 	}
-	if err := json.Unmarshal(data, &typed); err != nil {
+
+	if data[0] == '"' {
+		return json.Unmarshal(data, &t.Type)
+	}
+
+	v := _typed(*t)
+	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
-	t.Tag = typed.Tag
-	t.Type = typed.Type
-	t.raw = data
+	*t = Typed(v)
 	return nil
 }
 

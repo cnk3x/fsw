@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 
 	"github.com/cnk3x/fsw/configx"
@@ -40,7 +41,37 @@ type Config struct {
 
 // Trigger 定义单个触发器规则
 type Trigger struct {
-	Match strs   `json:"match"` // 匹配文件路径的正则表达式列表，匹配成功则触发
-	Event string `json:"event"` // 触发的事件类型，与 Config.Event 对应
-	Task  string `json:"task"`  // 要执行的任务名称，对应 Config.Tasks 中的键
+	Match    strs     `json:"match"`    // 匹配文件路径的正则表达式列表，匹配成功则触发
+	Event    string   `json:"event"`    // 触发的事件类型，与 Config.Event 对应
+	Task     string   `json:"task"`     // 要执行的任务名称，对应 Config.Tasks 中的键
+	Throttle duration `json:"throttle"` // 节流时间，防止短时间内重复触发
+}
+
+type _trigger Trigger
+
+func (t *Trigger) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if data[0] == '"' {
+		t.Task = string(data[1 : len(data)-1])
+		return nil
+	}
+
+	var v _trigger
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*t = Trigger(v)
+	return nil
+}
+
+func (t Trigger) MarshalJSON() ([]byte, error) {
+	if t.Task != "" && len(t.Match) == 0 &&
+		len(t.Event) == 0 &&
+		t.Throttle == 0 {
+		return json.Marshal(t.Task)
+	}
+	return json.Marshal(_trigger(t))
 }

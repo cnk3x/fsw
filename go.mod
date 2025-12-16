@@ -3,15 +3,17 @@ module github.com/cnk3x/fsw
 go 1.25.5
 
 require (
-	github.com/cnk3x/pkg v0.0.0-20251215222457-00776a00a87b
+	github.com/cnk3x/pkg v0.0.0-20251216193014-fe887ed4f54f
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
 	go.yaml.in/yaml/v3 v3.0.4
 )
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/samber/lo v1.52.0 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect

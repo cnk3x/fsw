@@ -6,15 +6,18 @@ import (
 	"path/filepath"
 )
 
-// FindUpFile 从当前工作目录开始，逐级向上查找名为 name 的常规文件，返回其绝对路径；若未找到则返回 os.ErrNotExist。
-func FindUpFile(name string) (string, error) {
+// FindUpFile 从当前工作目录开始，逐级向上查找名为 name 的常规文件，返回其绝对路径；若未找到则返回 defaultValue。
+func FindUpFile(name string, defaultValue ...string) string {
 	for curDir, _ := os.Getwd(); curDir != "" && curDir != filepath.VolumeName(curDir) && curDir != filepath.Dir(curDir); curDir = filepath.Dir(curDir) {
 		curFile := filepath.Join(curDir, name)
 		if stat, e := os.Stat(curFile); e == nil && stat.Mode().IsRegular() {
-			return curFile, nil
+			return curFile
 		}
 	}
-	return "", os.ErrNotExist
+	if len(defaultValue) > 0 {
+		return defaultValue[0]
+	}
+	return ""
 }
 
 // ReadYAML 读取指定 YAML 文件，将其转换为 JSON 后反序列化到 config 指针中，返回可能的错误。
@@ -43,6 +46,11 @@ func WriteYAML[T any](file string, config T) (err error) {
 	}
 
 	return os.WriteFile(file, data, 0666)
+}
+
+func IsExist(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
 }
 
 // ArrAt 安全获取切片 arr 中索引 i 的元素，支持负索引（从末尾开始计数）。若索引越界，返回零值和 false。
