@@ -24,8 +24,8 @@ func Handle(task *Typed) fsw.HandlerFunc {
 		return nil
 	}
 	switch task.Type {
-	case "oneshot":
-		return handleOneshot(task)
+	case "oneshot", "service":
+		return handleOneshotOrService(task)
 	case "shell":
 		return handleShell(task)
 	case "svg_sprite":
@@ -48,8 +48,29 @@ func handlerFromTyped[T any](task *Typed, process func(ctx context.Context, cfg 
 		return nil
 	}
 
+	var cancel context.CancelFunc
+	done := make(chan struct{})
+	close(done)
+
 	return func(ctx context.Context, e []fsnotify.Event) {
-		if err := process(ctx, cfg, e); err != nil {
+		if cancel != nil {
+			cancel()
+		}
+
+		select {
+		case <-ctx.Done():
+			slog.Info("task::done", "name", task.Tag, "err", context.Cause(ctx))
+			return
+		case <-done:
+		}
+
+		done = make(chan struct{})
+		defer close(done)
+
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+
+		if err := contextRun(ctx, func(ctx context.Context) error { return process(ctx, cfg, e) }); err != nil {
 			slog.Error("task::proc", "name", task.Tag, "err", err)
 		} else {
 			slog.Info("task::done", "name", task.Tag)
@@ -64,11 +85,13 @@ type oneshotConfig struct {
 	Timeout configx.Duration  `json:"timeout"`
 }
 
-func handleOneshot(task *Typed) fsw.HandlerFunc {
+func handleOneshotOrService(task *Typed) fsw.HandlerFunc {
 	return handlerFromTyped(task, func(ctx context.Context, cfg oneshotConfig, _ []fsnotify.Event) (err error) {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cmp.Or(cfg.Timeout.Value(), time.Second*10))
-		defer cancel()
+		if task.Type == "oneshot" { // oneshot任务, 超时默认10秒, service 任务, 不设置 timeout 不超时
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, cmp.Or(cfg.Timeout.Value(), time.Second*10))
+			defer cancel()
+		}
 
 		c := exec.CommandContext(ctx, cfg.Command[0], cfg.Command[1:]...)
 		c.SysProcAttr = &syscall.SysProcAttr{}
@@ -163,4 +186,13 @@ func handleSvgSprite(task *Typed) fsw.HandlerFunc {
 		slog.Info("svg_sprite", "files", len(files))
 		return svg.Sprite(cfg.Dst, files, svg.NameFromBase(cfg.Src), svg.Pretty(cfg.Pretty))
 	})
+}
+
+func contextRun(ctx context.Context, run func(ctx context.Context) error) (err error) {
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	default:
+		return run(ctx)
+	}
 }
