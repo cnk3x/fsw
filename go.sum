@@ -2,6 +2,8 @@ github.com/cnk3x/pkg v0.0.0-20251216174511-af1aff0f646f h1:H4SlmgOo2rCK1lMXxs2hB
 github.com/cnk3x/pkg v0.0.0-20251216174511-af1aff0f646f/go.mod h1:betGfr8v+EKiKbAzaEd/5XB7ahem/rizOVfxDTrize0=
 github.com/cnk3x/pkg v0.0.0-20251216193014-fe887ed4f54f h1:IHSCYTy2WT0yA806mgjGlQyiT8BVKr58jiqMfoByRPw=
 github.com/cnk3x/pkg v0.0.0-20251216193014-fe887ed4f54f/go.mod h1:betGfr8v+EKiKbAzaEd/5XB7ahem/rizOVfxDTrize0=
+github.com/cnk3x/pkg v0.0.0-20251217081606-419c0c32c9ac h1:TSBg06imyLU1lu4ThOcV3VkViNX+yHP1CBJB7oNioO0=
+github.com/cnk3x/pkg v0.0.0-20251217081606-419c0c32c9ac/go.mod h1:betGfr8v+EKiKbAzaEd/5XB7ahem/rizOVfxDTrize0=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=
 github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=

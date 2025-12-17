@@ -119,7 +119,7 @@ func handleShell(task *Typed) fsw.HandlerFunc {
 
 		shell := cfg.Shell
 		if len(shell) == 0 || shell[0] == "" {
-			if shell = GetShell(); len(shell) == 0 {
+			if shell = cmdo.GetShell(); len(shell) == 0 {
 				return fmt.Errorf("shell init: %w", err)
 			}
 		}

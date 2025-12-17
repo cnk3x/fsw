@@ -3,7 +3,7 @@ module github.com/cnk3x/fsw
 go 1.25.5
 
 require (
-	github.com/cnk3x/pkg v0.0.0-20251216193014-fe887ed4f54f
+	github.com/cnk3x/pkg v0.0.0-20251217081606-419c0c32c9ac
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
