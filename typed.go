@@ -27,8 +27,6 @@ func (t *Typed) UnmarshalProps(props any) (err error) {
 func (t *Typed) UnmarshalJSON(data []byte) error {
 	t.raw = data
 
-	slog.Warn(string(data))
-
 	if len(data) == 0 {
 		return nil
 	}
@@ -41,6 +39,7 @@ func (t *Typed) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
+
 	*t = Typed(v)
 	return nil
 }

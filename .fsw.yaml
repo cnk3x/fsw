@@ -5,7 +5,7 @@ tasks:
     echo: echo
     build:
         type: shell
-        command: "go build -v -trimpath -ldflags '-s -w -X main.version=$()' -o d:/bin/fsw.exe"
+        command: "go build -v -trimpath -ldflags '-s -w' -o d:/bin/fsw.exe"
 
 triggers:
     - echo
