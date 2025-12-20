@@ -50,7 +50,7 @@ func Run(ctx context.Context, c *cobra.Command) {
 
 	for _, item := range c.Commands() {
 		if item.Name() == "help" {
-			item.Short = "显示指定命令的说明信息"
+			item.Short = "显示命令信息"
 			continue
 		}
 		Run(context.TODO(), item)

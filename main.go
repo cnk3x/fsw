@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 	"github.com/cnk3x/fsw/configx"
 	"github.com/cnk3x/pkg/fsw"
 	"github.com/cnk3x/pkg/logx"
+	"github.com/cnk3x/pkg/svg"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
@@ -69,7 +71,47 @@ func main() {
 		}
 	})
 
-	rootCommand.AddCommand(taskCommand, initCommand)
+	svgCommand := NewCommand("sprite", func(c *cobra.Command) {
+		c.Flags().StringP("in", "i", "", "源目录")
+		c.Flags().StringP("out", "o", "", "输出文件")
+		c.Short = "生成svg雪碧图"
+		c.Aliases = append(c.Aliases, "svg", "svg_sprite")
+		c.Run = func(cmd *cobra.Command, args []string) {
+			in, out := GetFlag(cmd, "in"), GetFlag(cmd, "out")
+			if in == "" {
+				_ = c.Usage()
+				return
+			}
+
+			var files []string
+			if err := filepath.WalkDir(in, func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+
+				if !d.IsDir() && filepath.Ext(path) == ".svg" {
+					files = append(files, path)
+				}
+
+				return nil
+			}); err != nil {
+				slog.Error("list files", "err", err)
+				return
+			}
+
+			if out == "" {
+				out = filepath.Base(in) + ".svg"
+			}
+
+			if err := svg.Sprite(out, files, svg.NameFromBase(in)); err != nil {
+				slog.Error("generate svg sprite", "err", err)
+			} else {
+				slog.Info("generate svg sprite", "file", out)
+			}
+		}
+	})
+
+	rootCommand.AddCommand(taskCommand, initCommand, svgCommand)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
